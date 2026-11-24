@@ -598,6 +598,7 @@ mode = "PHYSX_DIFF_DRIVE"
 dist_total = 0.0
 prev = pose()
 min_port = [RANGE_MAX] * 3
+cam_pos, cam_look = None, None
 
 print(f"[sim] RUNNING pid={os.getpid()} frames={args.frames} out={args.out}", flush=True)
 t_start = time.time()
@@ -678,23 +679,19 @@ for i in range(args.frames):
         curve.GetWidthsAttr().Set([TRAIL_W] * len(trail))
         curve.GetCurveVertexCountsAttr().Set([len(trail)])
 
-    # camera: third person, clamped inside room and out of tall furniture
-    CAM_BACK, CAM_UP = 2.55, 1.95
-    CAM_LIM = HALF - 0.56
-    tgt = None
-    for deg in (0, 22, -22, 45, -45, 70, -70, 95, -95, 120, -120):
-        a = yaw + math.pi + math.radians(deg)
-        cx, cy = x + math.cos(a) * CAM_BACK, y + math.sin(a) * CAM_BACK
-        if abs(cx) > CAM_LIM or abs(cy) > CAM_LIM:
-            continue
-        ok = not any(xmin - 0.35 <= cx <= xmax + 0.35 and ymin - 0.35 <= cy <= ymax + 0.35
-                     for xmin, xmax, ymin, ymax in OBST)
-        if ok:
-            tgt = Gf.Vec3d(cx, cy, CAM_UP)
-            break
-    if tgt is None:
-        tgt = Gf.Vec3d(0, 0, CAM_UP)
-    look = Gf.Vec3d(x + math.cos(yaw) * 0.45, y + math.sin(yaw) * 0.45, 0.28)
+    # camera: fixed world-azimuth aerial gimbal, EMA smoothed (no yaw following, no cut-aways)
+    CAM_Z, CAM_DY, CAM_ALPHA = 2.85, -2.6, 0.06
+    tgt = Gf.Vec3d(max(-2.8, min(2.8, x)), max(-3.4, min(1.5, y + CAM_DY)), CAM_Z)
+    look = Gf.Vec3d(x, y, 0.15)
+    if cam_pos is None:
+        cam_pos = [tgt[0], tgt[1], tgt[2]]
+        cam_look = [look[0], look[1], look[2]]
+    else:
+        for k in range(3):
+            cam_pos[k] += CAM_ALPHA * (tgt[k] - cam_pos[k])
+            cam_look[k] += CAM_ALPHA * (look[k] - cam_look[k])
+    tgt = Gf.Vec3d(cam_pos[0], cam_pos[1], cam_pos[2])
+    look = Gf.Vec3d(cam_look[0], cam_look[1], cam_look[2])
     f = look - tgt
     fl = np.linalg.norm([f[0], f[1], f[2]]) + 1e-9
     pitch = math.degrees(math.acos(max(-1.0, min(1.0, -f[2] / fl))))

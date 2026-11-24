@@ -10,7 +10,7 @@ Both processes run on a stock Isaac Sim 6.2 / Isaac Lab environment that ships t
 
 ![Autonomous mapping + A\* navigation](assets/demo_nav_a_star.gif)
 
-*Autonomy: the occupancy grid top-right is built **only** from `/scan`; the green line is a hand-written A\* plan published on `/plan`, tracked by Pure Pursuit. Three goals plus a return-to-dock leg, 30 s, 75 % of the room mapped.*
+*Autonomy: the occupancy grid top-right is built **only** from `/scan`; the green line is a hand-written A\* plan published on `/plan`, tracked by Pure Pursuit. Three goals plus a return-to-dock leg, 30 s, 73 % of the room mapped, shot from a fixed overhead gimbal that never cuts.*
 
 ![Vision perception (HomeLite-YOLO)](assets/demo_vision_perception.gif)
 
@@ -56,8 +56,8 @@ flowchart LR
     AV --> T4
 ```
 
-* `src/ros_nav_sim.py` — process A for the navigation demo (900 frames = 30 s @ 30 fps). Subscribes `/cmd_vel`, publishes `/scan`, `/odom`, `/tf`, and subscribes `/plan` / `/map` / `/inflated` / `/nav_status` purely for the on-screen RViz-style overlay.
-* `src/nav_planner_node.py` — process B for the navigation demo. **Reads no ground-truth map**: occupancy grid (0.05 m/cell), multi-source BFS distance field for inflation (lethal 0.15 m / soft cost out to 0.35 m), 8-neighbour A\* (unknown cells passable with an extra cost), Pure Pursuit at 0.45 m look-ahead, three waypoints, `/plan` replanned every 0.5 s of **simulated** time or immediately when the current path is invalidated by a new obstacle.
+* `src/ros_nav_sim.py` — process A for the navigation demo (900 frames = 30 s @ 30 fps). Subscribes `/cmd_vel`, publishes `/scan`, `/odom`, `/tf`, and subscribes `/plan` / `/map` / `/inflated` / `/nav_status` purely for the on-screen RViz-style overlay. The third-person camera is a **fixed-azimuth overhead gimbal**: it always sits 2.6 m south of the robot at 2.85 m height and never follows the robot's yaw, with an EMA filter (α = 0.06) on both the camera position and the look-at point, so there is no shot-to-shot cut and no wall clipping.
+* `src/nav_planner_node.py` — process B for the navigation demo. **Reads no ground-truth map**: occupancy grid (0.05 m/cell), multi-source BFS distance field for inflation (lethal 0.15 m / soft cost out to 0.35 m), 8-neighbour A\* (unknown cells passable with an extra cost), Pure Pursuit at 0.45 m look-ahead, four waypoints (three goals + dock return), `/plan` replanned every 0.5 s of **simulated** time or immediately when the current path is invalidated by a new obstacle.
 * `src/ros_sweeper_sim.py`, `src/ros_avoid_controller.py` — the v1/v2 reactive closed-loop pair used for the first demo.
 * `src/ros2_preload.py` — the loader that makes the bundled ROS2 humble runtime usable inside Kit (see challenge #1).
 
@@ -67,15 +67,15 @@ flowchart LR
 |---|---|---|
 | Simulation length | 600 frames / 20.00 s | 900 frames / 30.00 s |
 | Drive mode | `PHYSX_DIFF_DRIVE` | `PHYSX_DIFF_DRIVE` |
-| Distance travelled (in-sim / `/odom`) | 8.44 m / 8.44 m | 13.97 m / 13.97 m |
-| `/scan` published → received | 600 → 599 | 900 → 898 |
-| `/odom` published → received | 600 → 599 | 900 → 898 |
-| `/cmd_vel` published → received | 1485 → 300 (last-value sampling) | 3633 → 169 (last-value sampling) |
-| Close-range avoidance events | 3 (0.45 m → 0.49 m → 0.38 m) | 4 (0.42 m → 0.57 m → 0.55 m → 0.54 m) |
-| Mapping coverage (known cells) | — | 75.1 % |
-| A\* replans / plan latency | — | 52 / ~3 ms (peak 17 ms on the first frame) |
-| Goals reached (< 0.28 m, no skipping) | — | 4 / 4 (G1 → G2 → G3 → DOCK), arrival errors 0.27 / 0.27 / 0.26 / 0.10 m |
-| Video | 1280×720, 30 fps, 5.86 Mbps | 1280×720, 30 fps, 5.76 Mbps |
+| Distance travelled (in-sim / `/odom`) | 8.44 m / 8.44 m | 13.92 m / 13.92 m |
+| `/scan` published → received | 600 → 599 | 900 → 899 |
+| `/odom` published → received | 600 → 599 | 900 → 899 |
+| `/cmd_vel` published → received | 1485 → 300 (last-value sampling) | 3639 → 169 (last-value sampling) |
+| Close-range avoidance events | 3 (0.45 m → 0.49 m → 0.38 m) | 4 (0.45 m → 0.57 m → 0.51 m → 0.58 m) |
+| Mapping coverage (known cells) | — | 73.1 % |
+| A\* replans / plan latency | — | 53 / ~3 ms (peak 25 ms on the first frame) |
+| Goals reached (< 0.28 m, no skipping) | — | 4 / 4 (G1 → G2 → G3 → DOCK), arrival errors 0.27 / 0.27 / 0.27 / 0.11 m |
+| Video | 1280×720, 30 fps, 5.86 Mbps | 1280×720, 30 fps, 5.91 Mbps |
 
 > The two `/scan` / `/odom` columns prove the topics really cross the process boundary; the last-value `/cmd_vel` sampling is expected — process A takes one `Twist` per physics step.
 
