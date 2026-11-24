@@ -114,7 +114,7 @@ def on_nav_status(m):
 node.create_subscription(OccupancyGrid, "/map", on_map, 10)
 node.create_subscription(OccupancyGrid, "/inflated", on_cost, 10)
 node.create_subscription(Path, "/plan", on_plan, 10)
-node.create_subscription(String, "/nav_status", on_nav_status, 10)
+node.create_subscription(String, "/nav_status", on_nav_status, 1)
 
 CMD = {"v": 0.0, "w": 0.0, "stamp": 0.0}
 CNT = {"cmd_recv": 0, "scan_pub": 0, "odom_pub": 0, "tf_pub": 0}
@@ -253,6 +253,9 @@ for i, (dx, dy) in enumerate([(-0.72, -0.36), (0.72, -0.36), (-0.72, 0.36), (0.7
 for k, (cx, cy) in enumerate([(-2.30, 1.30), (2.30, 1.30)]):
     furn(f"/World/Furn/Chair{k}Seat", (cx, cy, 0.42), (0.62, 0.62, 0.08), mat_fabric)
     furn(f"/World/Furn/Chair{k}Back", (cx, cy + 0.28, 0.72), (0.62, 0.08, 0.62), mat_fabric)
+    # four legs down to the floorboards (visual only, same idiom as the table legs)
+    for j, (dx, dy) in enumerate([(-0.24, -0.24), (0.24, -0.24), (-0.24, 0.24), (0.24, 0.24)]):
+        box(f"/World/Furn/Chair{k}Leg{j}", (cx + dx, cy + dy, 0.19), (0.06, 0.06, 0.38), mat_metal)
 furn("/World/Furn/Pot", (3.10, -2.60, 0.24), (0.52, 0.52, 0.48), mat_pot)
 furn("/World/Furn/TVCab", (-3.40, 0.0, 0.25), (0.55, 2.10, 0.50), mat_wood)
 furn("/World/Furn/TVScreen", (-3.49, 0.0, 1.35), (0.02, 1.62, 0.88), mat_screen)
@@ -543,12 +546,13 @@ def map_overlay(d, im, x, y, yaw):
         pl = MAPS["plan"]
         if len(pl) > 1:
             d.line([to_px(px_, py_) for (px_, py_) in pl], fill=(0, 255, 110, 255), width=3, joint="curve")
+        names = st.get("names") or [f"G{k + 1}" for k in range(len(st.get("goals") or []))]
         for k, gxy in enumerate(st.get("goals") or []):
             gpx, gpy = to_px(gxy[0], gxy[1])
             cur = (k + 1) == st.get("goal")
             d.ellipse([gpx - 6, gpy - 6, gpx + 6, gpy + 6],
                       outline=(255, 60, 50, 255) if cur else (200, 90, 80, 200), width=3 if cur else 2)
-            d.text((gpx + 8, gpy - 8), f"G{k+1}", font=FONT_S,
+            d.text((gpx + 8, gpy - 8), names[k] if k < len(names) else f"G{k + 1}", font=FONT_S,
                    fill=(255, 130, 110, 255) if cur else (190, 120, 110, 220))
         rpx, rpy = to_px(x, y)
         d.polygon([(rpx + 11 * math.cos(yaw), rpy - 11 * math.sin(yaw)),
@@ -572,7 +576,7 @@ def hud(img, lines, footer, x, y, yaw, v, w, dist_total):
     for i, s in enumerate(lines):
         d.text((28, 24 + i * 26), s, font=FONT_B, fill=(235, 255, 250, 255))
     # bottom-left: navigation HUD
-    nav_lines = [f"GOAL {st.get('goal', 1)}/{st.get('n', 3)}   dist {st.get('dist', 0):.2f} m",
+    nav_lines = [f"GOAL {st.get('goal', 1)}/{st.get('n', 4)}  {st.get('name', 'G1')}   dist {st.get('dist', 0):.2f} m",
                  f"state {st.get('state', 'IDLE')}   A* {st.get('plan_ms', 0):.1f} ms   replans {st.get('replans', 0)}",
                  f"/cmd_vel  v {v:+.2f} m/s   w {w:+.2f} rad/s",
                  f"/odom  x {x:+.2f}  y {y:+.2f}  mileage {dist_total:.2f} m"]

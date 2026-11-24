@@ -10,7 +10,7 @@ Both processes run on a stock Isaac Sim 6.2 / Isaac Lab environment that ships t
 
 ![Autonomous mapping + A\* navigation](assets/demo_nav_a_star.gif)
 
-*Autonomy: the occupancy grid top-right is built **only** from `/scan`; the green line is a hand-written A\* plan published on `/plan`, tracked by Pure Pursuit. Three goals, 30 s.*
+*Autonomy: the occupancy grid top-right is built **only** from `/scan`; the green line is a hand-written A\* plan published on `/plan`, tracked by Pure Pursuit. Three goals plus a return-to-dock leg, 30 s, 75 % of the room mapped.*
 
 ![Vision perception (HomeLite-YOLO)](assets/demo_vision_perception.gif)
 
@@ -67,15 +67,15 @@ flowchart LR
 |---|---|---|
 | Simulation length | 600 frames / 20.00 s | 900 frames / 30.00 s |
 | Drive mode | `PHYSX_DIFF_DRIVE` | `PHYSX_DIFF_DRIVE` |
-| Distance travelled (in-sim / `/odom`) | 8.44 m / 8.44 m | 10.22 m / 10.22 m |
+| Distance travelled (in-sim / `/odom`) | 8.44 m / 8.44 m | 13.97 m / 13.97 m |
 | `/scan` published → received | 600 → 599 | 900 → 898 |
 | `/odom` published → received | 600 → 599 | 900 → 898 |
-| `/cmd_vel` published → received | 1485 → 300 (last-value sampling) | 3577 → 171 (last-value sampling) |
-| Close-range avoidance events | 3 (0.45 m → 0.49 m → 0.38 m) | 3 (0.45 m → 0.59 m → 0.47 m) |
-| Mapping coverage (known cells) | — | 55.1 % |
-| A\* replans / plan latency | — | 40 / ~3 ms |
-| Goals reached | — | 3 / 3 |
-| Video | 1280×720, 30 fps, 5.86 Mbps | 1280×720, 30 fps, 5.46 Mbps |
+| `/cmd_vel` published → received | 1485 → 300 (last-value sampling) | 3633 → 169 (last-value sampling) |
+| Close-range avoidance events | 3 (0.45 m → 0.49 m → 0.38 m) | 4 (0.42 m → 0.57 m → 0.55 m → 0.54 m) |
+| Mapping coverage (known cells) | — | 75.1 % |
+| A\* replans / plan latency | — | 52 / ~3 ms (peak 17 ms on the first frame) |
+| Goals reached (< 0.28 m, no skipping) | — | 4 / 4 (G1 → G2 → G3 → DOCK), arrival errors 0.27 / 0.27 / 0.26 / 0.10 m |
+| Video | 1280×720, 30 fps, 5.86 Mbps | 1280×720, 30 fps, 5.76 Mbps |
 
 > The two `/scan` / `/odom` columns prove the topics really cross the process boundary; the last-value `/cmd_vel` sampling is expected — process A takes one `Twist` per physics step.
 
@@ -95,7 +95,7 @@ These are the four things that actually blocked the project, and how each was so
 4. **`psutil` version lock in the Kit environment.** The Isaac Sim/Isaac Lab Python 3.12 environment installs a `psutil` build that breaks the extension manager's process probes.
    *Fix:* pin `psutil==5.9.8` inside the environment (no `sudo`, no driver changes).
 
-Two smaller ones worth knowing: `UsdPhysics.Scene` must exist or PhysX never steps (the robot silently stands still), and `UsdGeom.XformCache` must **not** be reused across frames if you want live poses — a cached cache returns the opening pose forever and makes odometry look frozen at 0.
+Three smaller ones worth knowing: a **status-queueing lag** made the HUD show `dist 0.60 m` while the robot was already 0.08 m from the goal (fix: `/nav_status` publishes every simulation frame with queue depth 1, and the displayed distance is never forced to 0); `UsdPhysics.Scene` must exist or PhysX never steps (the robot silently stands still), and `UsdGeom.XformCache` must **not** be reused across frames if you want live poses — a cached cache returns the opening pose forever and makes odometry look frozen at 0.
 
 ## 5. Repository layout
 

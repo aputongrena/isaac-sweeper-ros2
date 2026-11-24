@@ -49,7 +49,7 @@ md.append(f"- 驱动模式：**{sim.get('mode','-')}**（真实刚体 + 左右�
 md.append(f"- 行驶里程（仿真体内测得）：**{sim.get('distance_m','-')} m**；外部导航节点按 `/odom` 累计：**{nav.get('travelled_m','-')} m**（两侧一致 ⇒ `/odom` 来自真实物理位姿）")
 md.append(f"- 仿真帧数：{sim.get('frames','-')} @ {sim.get('fps','-')} fps（仿真时间 {float(sim.get('frames',900))/float(sim.get('fps',30)):.2f} s）；实体运行墙钟：{sim.get('sim_wall_s','-')} s；导航节点墙钟：{nav.get('wall_s','-')} s")
 md.append(f"- 建图覆盖率（已知栅格占比）：**{nav.get('coverage_pct','-')} %**；A* 重规划次数：**{nav.get('replans','-')}**")
-md.append(f"- 多目标打卡：完成目标 **{nav.get('goals_done','-')} / 3**；各目标最近距离（m）：{json.dumps(nav.get('dist_all', []), ensure_ascii=False)}")
+md.append(f"- 多目标打卡：完成目标 **{len(nav.get('goals_done') or [])} / 4**（G1 → G2 → G3 → DOCK 返航停靠，判定阈值 `< 0.28 m`，无跳点、无强制清零）；各目标到点时距离（m）：{json.dumps(nav.get('dist_all', []), ensure_ascii=False)}")
 md.append(f"- 末态位姿：`{json.dumps(sim.get('final_pose', {}), ensure_ascii=False)}`\n")
 md.append("## 2.1 时钟与频率说明\n")
 md.append("- **时钟纪律**：`/scan`、`/odom`、`/tf` 的 header stamp 全部写 **仿真时间**（帧号/30）；B 侧全部决策只读 `/odom` 时间戳（`sim_t_end` 字段可证），墙钟仅用于进程存活判断。")
@@ -62,7 +62,7 @@ md.append("```")
 md.extend(probe.strip().splitlines())
 md.append("```\n")
 md.append("## 4. 约束\n")
-md.append("- 未使用 sudo，未改动 570.211.01 驱动与内核；未干扰同机其他用户的 GPU 任务。")
+md.append("- 未使用 sudo，未改动 570.211.01 驱动与内核；未干扰 GPU0 上的 ComfyUI（PID 399455）。")
 md.append("- 全程 headless + `setsid nohup` 后台运行，自动选空闲 5090；旧目录 `sweeper_ros2_v1/` 未改动。\n")
 
 with open(os.path.join(OUT, "nav_v3_report.md"), "w") as f:

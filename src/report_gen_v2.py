@@ -58,7 +58,7 @@ md.append("```")
 md.extend(probe.strip().splitlines())
 md.append("```\n")
 md.append("## 4. 约束\n")
-md.append("- 未使用 sudo，未改动 570.211.01 驱动与内核；未干扰同机其他用户的 GPU 任务。")
+md.append("- 未使用 sudo，未改动 570.211.01 驱动与内核；未干扰 GPU0 上的 ComfyUI（PID 399455）。")
 md.append("- 全程 headless + `setsid nohup` 后台运行，自动选空闲 5090。\n")
 
 with open(os.path.join(OUT, "ros2_closed_loop_report.md"), "w") as f:

@@ -35,8 +35,9 @@ R_SOFT = 7                      # cells: soft penalty out to 0.35 m
 
 logodds = np.zeros((H, W), np.float32)
 
-GOALS = [(1.50, 1.35), (-1.40, 2.30), (-2.50, 0.30)]
-V_MAX, W_MAX, V_MIN = 0.65, 1.10, 0.18
+GOALS = [(1.50, 1.35), (-1.40, 2.30), (-2.30, 0.40), (0.60, -1.60)]
+NAMES = ["G1", "G2", "G3", "DOCK"]
+V_MAX, W_MAX, V_MIN = 0.70, 1.10, 0.20
 LOOKAHEAD = 0.45
 GOAL_TOL = 0.28
 REPLAN_DT = 0.50               # simulation seconds
@@ -50,7 +51,7 @@ pub_cmd = node.create_publisher(Twist, "/cmd_vel", 10)
 pub_plan = node.create_publisher(Path, "/plan", 10)
 pub_map = node.create_publisher(OccupancyGrid, "/map", 10)
 pub_cost = node.create_publisher(OccupancyGrid, "/inflated", 10)
-pub_stat = node.create_publisher(String, "/nav_status", 10)
+pub_stat = node.create_publisher(String, "/nav_status", 1)
 
 
 def on_scan(m):
@@ -292,9 +293,10 @@ while True:
     stamp.nanosec = int((sim_t - int(sim_t)) * 1e9)
 
     all_done = goal_i >= len(GOALS)
-    gx, gy = GOALS[min(goal_i, len(GOALS) - 1)]
-    dist_goal = 0.0 if all_done else math.hypot(gx - x, gy - y)
-    dist_all[min(goal_i, len(GOALS) - 1)] = dist_goal
+    gi_now = min(goal_i, len(GOALS) - 1)
+    gx, gy = GOALS[gi_now]
+    dist_goal = math.hypot(gx - x, gy - y)   # always the true distance, never forced to 0
+    dist_all[gi_now] = dist_goal
 
     # ---- replan: every REPLAN_DT of sim time, or when the path gets blocked ----
     blocked = False
@@ -353,20 +355,23 @@ while True:
     pub_cmd.publish(cmd)
     CNT["cmd_pub"] += 1
 
-    # ---- map / cost / status to process A (map view panel) ----
+    # ---- map / cost to process A (RViz-like panel), keeps building even after docking ----
     if sim_t - last_pub_map > 0.15:
         pub_map.publish(occupancy_msg(stamp))
         pub_cost.publish(cost_msg(stamp, cost))
         last_pub_map = sim_t
         CNT["map_pub"] += 1
-        st = String()
-        st.data = json.dumps({"goal": min(goal_i + 1, len(GOALS)), "n": len(GOALS),
-                              "dist": round(dist_goal, 2), "state": state_txt,
-                              "plan_ms": round(plan_ms, 1), "replans": replans,
-                              "coverage": round(coverage, 1), "travelled": round(travelled, 2),
-                              "goals": GOALS, "done": goals_done,
-                              "v": round(v, 2), "w": round(w, 2)}, ensure_ascii=False)
-        pub_stat.publish(st)
+
+    # ---- status every tick, depth 1: the HUD must never show a stale goal distance ----
+    st = String()
+    st.data = json.dumps({"goal": gi_now + 1, "n": len(GOALS), "name": NAMES[gi_now],
+                          "dist": round(dist_goal, 2), "state": state_txt,
+                          "all_done": bool(all_done),
+                          "plan_ms": round(plan_ms, 1), "replans": replans,
+                          "coverage": round(coverage, 1), "travelled": round(travelled, 2),
+                          "goals": GOALS, "names": NAMES, "done": goals_done,
+                          "v": round(v, 2), "w": round(w, 2)}, ensure_ascii=False)
+    pub_stat.publish(st)
 
 wall = time.time() - t0
 stats = {"cmd_pub": CNT["cmd_pub"], "scan_recv": CNT["scan_recv"], "odom_recv": CNT["odom_recv"],
