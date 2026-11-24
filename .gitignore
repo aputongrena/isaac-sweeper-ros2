@@ -1,0 +1,37 @@
+# --- build / run artefacts ---
+out/
+*/out/
+*.log
+RESULT.txt
+pids.txt
+frames/
+frames_main/
+__pycache__/
+*.pyc
+
+# --- large media: GIFs only, never the source videos ---
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# --- model weights and training code are intentionally excluded ---
+*.pt
+*.pth
+*.onnx
+*.engine
+*.ckpt
+runs/
+wandb/
+
+# --- secrets / local settings ---
+.env
+*.pem
+*.key
+ros2_env.local.sh
+
+# --- editor / OS noise ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
